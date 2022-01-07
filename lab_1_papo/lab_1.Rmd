@@ -1,0 +1,80 @@
+---
+title: "ESM 244 Lab 1"
+author: "Patrick Pelegri-O'Day"
+date: "1/7/2022"
+output: html_document
+---
+
+```{r setup, include=TRUE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
+
+library(tidyverse)
+library(here)
+library(sf)
+library(tmap)
+
+### update.packages(ask = F)
+```
+
+### Read in the data
+
+```{r}
+sf_trees <- read_csv(here('data', 'sf_trees', 'sf_trees.csv'),
+                     show_col_types = F)
+```
+
+### Part 1: wrangling and ggplot review
+
+**Example 1:** Find counts of observations by `legal_status` & wrangle a bit.
+
+```{r}
+### method 1: group_by() %>% summarize()
+sf_trees %>% 
+  group_by(legal_status) %>% 
+  summarize(tree_count = n())
+
+### method 2:different way plus a few new functions
+top_5_status <- sf_trees %>% 
+  count(legal_status) %>% 
+  drop_na(legal_status) %>% 
+  rename(tree_count = n) %>% 
+  relocate(tree_count) %>% # bring the column in parentheses to become 1st column
+  slice_max(tree_count, n = 5) %>% # select tree_count with five highest values
+  arrange(-tree_count) # arrange in descending order (default is ascending, note minus sign)
+# alternative: arrange(desc(tree_count)) - does same thing as line above
+```
+
+Make a graph of the top 5 from above:
+
+```{r}
+ggplot(data = top_5_status, aes(x = fct_reorder(legal_status, -tree_count), y = tree_count)) + # rct_reorder is reordering legal_status by negative tree_count
+  geom_col(fill = 'darkgreen') +
+  labs(x = "Legal status", y = "Tree count") +
+  coord_flip() # flip columns so they're extending horizontally instead of vertically +
+theme_classic()
+```
+
+**Example 2:** Only going to keep observations where legal status is "Permitted Site" and caretaker is "MTA", and store as `permitted_data_df`
+
+```{r}
+# sf_trees$legal_status %>% unique()
+# unique(sf_trees$caretaker) - same effect as above
+
+permitted_data_df <- sf_trees %>% 
+  filter(legal_status == 'Permitted Site', caretaker == 'MTA')
+```
+
+**Example 3:** Only keep Blackwood Acacia trees, then only keep columns `legal_status`, `date`, `latitute`, `longitude`, and store as `blackwood_acacia_df`
+
+```{r}
+blackwood_acacia_df <- sf_trees %>% 
+  filter(str_detect(species, 'Blackwood Acacia')) %>%  # str_detect finds observations in column species where any part of the character value has 'Blackwood Acacia' in it; there can be other character values in there too
+  select(legal_status, date, lat = latitude, lon = longitude)
+
+### Make a graph of locations
+ggplot(blackwood_acacia_df, aes(x = lon, y = lat))
+```
+
+
+
+
